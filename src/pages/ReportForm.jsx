@@ -1,12 +1,14 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { supabase } from "../lib/supabase";
+import useAuth from "../hooks/useAuth";
 import TopNavbar from "../components/TopNavbar";
 
-// ── Estilos base reutilizables ────────────────────────────────────────────────
-const inputBase = {
+// ── Estilos base ──────────────────────────────────────────────────────────────
+const inputCls = {
   width:        "100%",
   padding:      "12px 14px",
-  borderRadius: "999px",
+  borderRadius: "12px",
   border:       "1.5px solid #C8D8E8",
   background:   "white",
   fontSize:     "0.85rem",
@@ -15,14 +17,13 @@ const inputBase = {
   boxSizing:    "border-box",
 };
 
-const textareaBase = {
-  ...inputBase,
-  borderRadius: "1rem",
-  resize:       "none",
-  minHeight:    "100px",
+const textareaCls = {
+  ...inputCls,
+  resize:    "none",
+  minHeight: "110px",
 };
 
-const sectionLabel = {
+const sectionLabelCls = {
   fontWeight:    900,
   fontSize:      "0.8rem",
   color:         "#0D2B45",
@@ -32,21 +33,38 @@ const sectionLabel = {
   display:       "block",
 };
 
-// ── Pantalla ──────────────────────────────────────────────────────────────────
+// ── Subir un archivo al bucket privado "maltrato" ─────────────────────────────
+async function uploadEvidencia(file, userId) {
+  const ext      = file.name.split(".").pop();
+  const filename = `${userId ?? "anon"}/${Date.now()}_${Math.random().toString(36).slice(2)}.${ext}`;
+
+  const { error } = await supabase.storage
+    .from("maltrato")
+    .upload(filename, file, { upsert: false });
+
+  if (error) throw error;
+  return filename; // ruta dentro del bucket (privado, solo admins la ven)
+}
+
+// ── Componente ────────────────────────────────────────────────────────────────
 export default function ReportForm() {
-  const navigate = useNavigate();
+  const navigate    = useNavigate();
+  const { session } = useAuth();
+
   const [form, setForm] = useState({
-    location:    "",
-    animalName:  "",
-    datetime:    "",
-    reporterName:"",
-    reporterAddr:"",
-    description: "",
+    location:     "",
+    animalName:   "",
+    datetime:     "",
+    reporterName: "",
+    reporterAddr: "",
+    description:  "",
   });
-  const [files,   setFiles]   = useState([]);
-  const [loading, setLoading] = useState(false);
-  const [success, setSuccess] = useState(false);
-  const [errors,  setErrors]  = useState({});
+
+  const [files,    setFiles]    = useState([]);   // File[]
+  const [previews, setPreviews] = useState([]);   // ObjectURL[]
+  const [loading,  setLoading]  = useState(false);
+  const [success,  setSuccess]  = useState(false);
+  const [errors,   setErrors]   = useState({});
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -54,12 +72,26 @@ export default function ReportForm() {
     if (errors[name]) setErrors((p) => ({ ...p, [name]: "" }));
   };
 
+  const handleFiles = (e) => {
+    const selected = Array.from(e.target.files).slice(0, 5);
+    // revocar URLs anteriores para evitar memory leaks
+    previews.forEach((url) => URL.revokeObjectURL(url));
+    setFiles(selected);
+    setPreviews(selected.map((f) => URL.createObjectURL(f)));
+  };
+
+  const removeFile = (i) => {
+    URL.revokeObjectURL(previews[i]);
+    setFiles((prev)    => prev.filter((_, idx) => idx !== i));
+    setPreviews((prev) => prev.filter((_, idx) => idx !== i));
+  };
+
   const validate = () => {
     const e = {};
-    if (!form.location)    e.location    = "Requerido";
-    if (!form.animalName)  e.animalName  = "Requerido";
-    if (!form.datetime)    e.datetime    = "Requerido";
-    if (!form.description) e.description = "Requerido";
+    if (!form.location.trim())    e.location    = "Requerido";
+    if (!form.animalName.trim())  e.animalName  = "Requerido";
+    if (!form.datetime.trim())    e.datetime    = "Requerido";
+    if (!form.description.trim()) e.description = "Requerido";
     return e;
   };
 
@@ -67,12 +99,35 @@ export default function ReportForm() {
     const errs = validate();
     if (Object.keys(errs).length > 0) { setErrors(errs); return; }
     setLoading(true);
+
     try {
-      // TODO: guardar en Supabase tabla "reportes_maltrato" + subir archivos a Storage
-      await new Promise((r) => setTimeout(r, 1200));
+      // 1. Subir cada archivo y recopilar rutas
+      const evidencias = [];
+      for (const file of files) {
+        const path = await uploadEvidencia(file, session?.user?.id);
+        evidencias.push(path);
+      }
+
+      // 2. Insertar reporte con el array de rutas
+      const { error: insertError } = await supabase
+        .from("reportes_maltrato")
+        .insert({
+          ubicacion:         form.location.trim(),
+          nombre_animal:     form.animalName.trim(),
+          fecha_hora:        form.datetime.trim(),
+          nombre_reportante: form.reporterName.trim() || null,
+          dir_reportante:    form.reporterAddr.trim()  || null,
+          descripcion:       form.description.trim(),
+          estado:            "pendiente",
+          reportado_por:     session?.user?.id ?? null,
+          evidencias,          // ← array text[] en Supabase
+        });
+
+      if (insertError) throw insertError;
+
       setSuccess(true);
-    } catch {
-      setErrors({ general: "Error al enviar. Intenta de nuevo." });
+    } catch (err) {
+      setErrors({ general: `Error al enviar: ${err.message}` });
     } finally {
       setLoading(false);
     }
@@ -98,7 +153,8 @@ export default function ReportForm() {
         >
           <p className="font-black text-sm mb-1" style={{ color: "#1E8A4A" }}>¿Qué sigue?</p>
           <p className="text-xs" style={{ color: "#27AE60", lineHeight: 1.5 }}>
-            Nuestro equipo revisará tu reporte y lo derivará a las comisarías correspondientes dentro de las próximas 24 horas.
+            Nuestro equipo revisará tu reporte y lo derivará a las comisarías
+            correspondientes dentro de las próximas 24 horas.
           </p>
         </div>
         <button
@@ -131,122 +187,147 @@ export default function ReportForm() {
         </h1>
 
         {/* ── Sección 1 ── */}
-        <div>
-          <span style={sectionLabel}>Ubicación y Detalles del Hecho</span>
+        <div className="flex flex-col gap-2">
+          <span style={sectionLabelCls}>Ubicación y Detalles del Hecho</span>
 
-          {/* Ubicación — textarea redondeado */}
           <textarea
             name="location"
             value={form.location}
             onChange={handleChange}
             placeholder="Ubicación y Dirección (Describe donde ocurrió)"
-            style={{ ...textareaBase, minHeight: "80px", marginBottom: "10px",
-              borderColor: errors.location ? "#E74C3C" : "#C8D8E8" }}
+            style={{ ...textareaCls, minHeight: "80px", borderColor: errors.location ? "#E74C3C" : "#C8D8E8" }}
           />
-          {errors.location && <p className="text-xs text-red-500 -mt-2 mb-2 px-2">{errors.location}</p>}
+          {errors.location && <p className="text-xs text-red-500 -mt-1 px-1">{errors.location}</p>}
 
           <input
             name="animalName"
             value={form.animalName}
             onChange={handleChange}
             placeholder="Nombre del Animal / Tipo"
-            style={{ ...inputBase, marginBottom: "10px",
-              borderColor: errors.animalName ? "#E74C3C" : "#C8D8E8" }}
+            style={{ ...inputCls, borderColor: errors.animalName ? "#E74C3C" : "#C8D8E8" }}
           />
-          {errors.animalName && <p className="text-xs text-red-500 -mt-2 mb-2 px-2">{errors.animalName}</p>}
+          {errors.animalName && <p className="text-xs text-red-500 -mt-1 px-1">{errors.animalName}</p>}
 
           <input
             name="datetime"
             value={form.datetime}
             onChange={handleChange}
             placeholder="Fecha / Hora / Situación del animal"
-            style={{ ...inputBase, borderColor: errors.datetime ? "#E74C3C" : "#C8D8E8" }}
+            style={{ ...inputCls, borderColor: errors.datetime ? "#E74C3C" : "#C8D8E8" }}
           />
-          {errors.datetime && <p className="text-xs text-red-500 mt-1 px-2">{errors.datetime}</p>}
+          {errors.datetime && <p className="text-xs text-red-500 -mt-1 px-1">{errors.datetime}</p>}
         </div>
 
         {/* ── Sección 2 ── */}
-        <div>
-          <span style={sectionLabel}>Datos Clave (Opcional):</span>
-          <p className="text-xs mb-3" style={{ color: "#6B8FA8", marginTop: "-4px" }}>
-            Nombre del reportante{"\n"}Dirección del reportante
+        <div className="flex flex-col gap-2">
+          <span style={sectionLabelCls}>Datos Clave (Opcional):</span>
+          <p className="text-xs -mt-2" style={{ color: "#6B8FA8" }}>
+            Nombre del reportante · Dirección del reportante
           </p>
-
           <input
             name="reporterName"
             value={form.reporterName}
             onChange={handleChange}
             placeholder="Nombre del reportante (opcional)"
-            style={{ ...inputBase, marginBottom: "10px" }}
+            style={inputCls}
           />
-
           <input
             name="reporterAddr"
             value={form.reporterAddr}
             onChange={handleChange}
             placeholder="Dirección del reportante (opcional)"
-            style={inputBase}
+            style={inputCls}
           />
         </div>
 
         {/* ── Sección 3 ── */}
-        <div>
-          <span style={sectionLabel}>
-            Descripción Detallada de los{"\n"}Hechos y Observaciones
+        <div className="flex flex-col gap-2">
+          <span style={sectionLabelCls}>
+            Descripción Detallada de los Hechos y Observaciones
           </span>
           <textarea
             name="description"
             value={form.description}
             onChange={handleChange}
             placeholder="Describe con detalle lo que observaste..."
-            style={{ ...textareaBase, minHeight: "120px",
-              borderColor: errors.description ? "#E74C3C" : "#C8D8E8" }}
+            style={{ ...textareaCls, minHeight: "120px", borderColor: errors.description ? "#E74C3C" : "#C8D8E8" }}
           />
-          {errors.description && <p className="text-xs text-red-500 mt-1 px-2">{errors.description}</p>}
+          {errors.description && <p className="text-xs text-red-500 -mt-1 px-1">{errors.description}</p>}
         </div>
 
-        {/* Error general */}
-        {errors.general && (
-          <div className="rounded-xl px-4 py-3 text-xs font-semibold text-red-600"
-            style={{ background: "#FEF0EE", border: "1px solid #F0C5C0" }}>
-            ⚠️ {errors.general}
-          </div>
-        )}
-
         {/* ── Botón subir fotos ── */}
-        <label>
+        <label className="cursor-pointer">
           <input
             type="file"
             multiple
             accept="image/*,video/*"
             className="hidden"
-            onChange={(e) => setFiles(Array.from(e.target.files).slice(0, 5))}
+            onChange={handleFiles}
           />
           <div
-            className="w-full py-4 rounded-2xl font-black text-sm text-center cursor-pointer active:scale-[0.98] transition-transform"
+            className="w-full py-4 rounded-2xl font-black text-sm text-center active:scale-[0.98] transition-transform"
             style={{
-              background:    "transparent",
+              background:    "#FDF3DC",
               border:        "2px solid #C8960A",
               color:         "#8B6500",
               letterSpacing: "0.04em",
             }}
           >
             SUBIR FOTOS O VIDEOS (EVIDENCIA)
+            {files.length > 0 && (
+              <span className="ml-2 font-bold text-xs">
+                ({files.length} archivo{files.length > 1 ? "s" : ""})
+              </span>
+            )}
           </div>
         </label>
 
-        {/* Archivos seleccionados */}
-        {files.length > 0 && (
-          <div className="flex flex-wrap gap-2 -mt-2">
-            {files.map((f, i) => (
-              <span
-                key={i}
-                className="text-xs font-bold px-3 py-1 rounded-full"
-                style={{ background: "#FDF3DC", color: "#8B6500", border: "1px solid #C8960A" }}
-              >
-                📎 {f.name.length > 16 ? f.name.slice(0, 16) + "…" : f.name}
-              </span>
-            ))}
+        {/* ── Previsualización ── */}
+        {previews.length > 0 && (
+          <div className="flex flex-col gap-2">
+            <p className="text-xs font-black uppercase tracking-wider" style={{ color: "#7A9BB5" }}>
+              Evidencias seleccionadas
+            </p>
+            <div className="flex flex-wrap gap-2">
+              {previews.map((src, i) => (
+                <div
+                  key={i}
+                  className="relative rounded-xl overflow-hidden"
+                  style={{ width: "80px", height: "80px", border: "1.5px solid #C8D8E8" }}
+                >
+                  <img
+                    src={src}
+                    alt={`evidencia-${i + 1}`}
+                    className="w-full h-full object-cover"
+                  />
+                  {/* Botón quitar */}
+                  <button
+                    onClick={() => removeFile(i)}
+                    className="absolute top-1 right-1 w-5 h-5 rounded-full flex items-center justify-center font-black text-xs text-white leading-none"
+                    style={{ background: "#E74C3C" }}
+                  >
+                    ×
+                  </button>
+                  {/* Número */}
+                  <div
+                    className="absolute bottom-1 left-1 w-4 h-4 rounded-full flex items-center justify-center font-black text-[9px] text-white"
+                    style={{ background: "rgba(0,0,0,0.55)" }}
+                  >
+                    {i + 1}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Error general */}
+        {errors.general && (
+          <div
+            className="rounded-xl px-4 py-3 text-xs font-semibold text-red-600"
+            style={{ background: "#FEF0EE", border: "1px solid #F0C5C0" }}
+          >
+            ⚠️ {errors.general}
           </div>
         )}
 
@@ -255,11 +336,7 @@ export default function ReportForm() {
           onClick={handleSubmit}
           disabled={loading}
           className="w-full py-4 rounded-2xl font-black text-sm active:scale-[0.98] transition-transform disabled:opacity-60"
-          style={{
-            background:    "#C8960A",
-            color:         "white",
-            letterSpacing: "0.04em",
-          }}
+          style={{ background: "#C8960A", color: "white", letterSpacing: "0.04em" }}
         >
           {loading ? (
             <span className="flex items-center justify-center gap-2">

@@ -1,12 +1,13 @@
 import dogImg from "../assets/pet/dog.png";
-import catImg from "../assets/pet/cat.png";
+import catImg  from "../assets/pet/cat.png";
 
 // Props:
-// pet        : objeto con datos de la mascota perdida
-// onDetail   : función que recibe el pet para abrir detalle
+// pet      : objeto con datos de la mascota perdida
+// onDetail : función que recibe el pet para abrir detalle
 
 export default function LostPetCard({ pet, onDetail }) {
-  const isDog = pet.type === "dog";
+  const isDog  = pet.type === "dog";
+  const imgSrc = pet.fotoUrl ?? (isDog ? dogImg : catImg);
 
   return (
     <div
@@ -29,9 +30,15 @@ export default function LostPetCard({ pet, onDetail }) {
         }}
       >
         <img
-          src={isDog ? dogImg : catImg}
+          src={imgSrc}
           alt={pet.name}
-          className="w-full h-full object-contain object-bottom"
+          // Si la foto de Supabase falla, cae al placeholder local
+          onError={(e) => {
+            if (e.target.src !== (isDog ? dogImg : catImg)) {
+              e.target.src = isDog ? dogImg : catImg;
+            }
+          }}
+          className="w-full h-full object-cover"
         />
       </div>
 
