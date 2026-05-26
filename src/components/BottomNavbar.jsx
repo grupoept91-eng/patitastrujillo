@@ -1,6 +1,5 @@
 import { useNavigate, useLocation } from "react-router-dom";
 
-// ── Íconos ────────────────────────────────────────────────────────────────────
 const HomeIcon = () => (
   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className="w-7 h-7">
     <path d="M3 10.5L12 3l9 7.5" />
@@ -41,7 +40,6 @@ const SettingsIcon = () => (
   </svg>
 );
 
-// ── Configuración de rutas del navbar ─────────────────────────────────────────
 const NAV_ITEMS = [
   { id: "home",     route: "/dashboard", Icon: HomeIcon     },
   { id: "paw",      route: "/donate",    Icon: PawIcon      },
@@ -50,32 +48,43 @@ const NAV_ITEMS = [
   { id: "settings", route: "/settings",  Icon: SettingsIcon },
 ];
 
-// ── Componente ────────────────────────────────────────────────────────────────
 export default function BottomNavbar() {
-  const navigate  = useNavigate();
-  const location  = useLocation();
+  const navigate = useNavigate();
+  const location = useLocation();
 
-  // Detecta cuál ruta está activa automáticamente
   const activeId = NAV_ITEMS.find((item) =>
     location.pathname === item.route
   )?.id ?? "home";
 
   return (
-    <nav className="bg-white border-t border-[#D8ECF8] flex items-center px-4 py-3 shrink-0">
-      {NAV_ITEMS.map(({ id, route, Icon }) => {
-        const isActive = activeId === id;
-        return (
-          <button
-            key={id}
-            onClick={() => navigate(route)}
-            className="flex-1 flex justify-center items-center py-1"
-          >
-            <span className={isActive ? "text-[#1E6FAD]" : "text-[#B0CCDF]"}>
-              <Icon />
-            </span>
-          </button>
-        );
-      })}
-    </nav>
+    <>
+      {/* Espaciador para que el contenido no quede tapado */}
+      <div className="h-16 shrink-0" />
+
+      {/* Navbar fijo al fondo */}
+      <nav
+        className="fixed bottom-0 left-0 right-0 z-50 flex items-center px-4 py-3 max-w-sm mx-auto"
+        style={{
+          background:   "white",
+          borderTop:    "1px solid #D8ECF8",
+          boxShadow:    "0 -2px 12px rgba(0,0,0,0.06)",
+        }}
+      >
+        {NAV_ITEMS.map(({ id, route, Icon }) => {
+          const isActive = activeId === id;
+          return (
+            <button
+              key={id}
+              onClick={() => navigate(route)}
+              className="flex-1 flex justify-center items-center py-1"
+            >
+              <span className={isActive ? "text-[#1E6FAD]" : "text-[#B0CCDF]"}>
+                <Icon />
+              </span>
+            </button>
+          );
+        })}
+      </nav>
+    </>
   );
 }

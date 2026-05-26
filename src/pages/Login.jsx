@@ -10,12 +10,41 @@ const PawPrint = ({ className = "" }) => (
   </svg>
 );
 
+const IconEye = () => (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" className="w-5 h-5">
+    <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+    <circle cx="12" cy="12" r="3"/>
+  </svg>
+);
+
+const IconEyeOff = () => (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" className="w-5 h-5">
+    <path d="M17.94 17.94A10.07 10.07 0 0112 20c-7 0-11-8-11-8a18.45 18.45 0 015.06-5.94"/>
+    <path d="M9.9 4.24A9.12 9.12 0 0112 4c7 0 11 8 11 8a18.5 18.5 0 01-2.16 3.19"/>
+    <path d="M1 1l22 22"/>
+  </svg>
+);
+
+const IconMail = () => (
+  <svg viewBox="0 0 24 24" fill="none" stroke="#AACCE0" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4">
+    <rect x="2" y="4" width="20" height="16" rx="2"/>
+    <path d="M2 7l10 7 10-7"/>
+  </svg>
+);
+
+const IconLock = () => (
+  <svg viewBox="0 0 24 24" fill="none" stroke="#AACCE0" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4">
+    <rect x="3" y="11" width="18" height="11" rx="2"/>
+    <path d="M7 11V7a5 5 0 0110 0v4"/>
+  </svg>
+);
+
 export default function Login() {
   const navigate = useNavigate();
   const [form,     setForm]    = useState({ email: "", password: "" });
   const [loading,  setLoading] = useState(false);
   const [error,    setError]   = useState("");
-  const [showPass, setShowPass]= useState(false);
+  const [showPass, setShowPass] = useState(false);
 
   const handleChange = (e) => setForm((p) => ({ ...p, [e.target.name]: e.target.value }));
 
@@ -41,8 +70,12 @@ export default function Login() {
     }
   };
 
+  const inputCls = "w-full pl-9 pr-4 py-3 rounded-xl border-2 border-[#D4E6F5] bg-[#F5FAFF] text-[#0D3B6E] text-sm placeholder:text-[#AACCE0] focus:outline-none focus:border-[#1E6FAD] transition-colors";
+
   return (
     <div className="min-h-screen bg-[#EBF4FF] flex flex-col items-center justify-center px-5 py-8 font-['Nunito',sans-serif]">
+
+      {/* Logo */}
       <div className="w-full max-w-sm mb-6 text-center">
         <div className="flex justify-center mb-3">
           <div className="w-20 h-20 rounded-3xl bg-[#1E6FAD] flex items-center justify-center shadow-lg shadow-blue-300/50">
@@ -51,38 +84,69 @@ export default function Login() {
         </div>
         <h1 className="text-3xl font-black text-[#0D3B6E] tracking-wide">PATITAS</h1>
         <p className="text-sm font-bold text-[#F5A623] tracking-[0.25em] -mt-1">TRUJILLO</p>
-        <p className="text-xs text-[#5A8AB0] mt-2">Cuidamos a quienes no tienen voz 🐾</p>
+        <p className="text-xs text-[#5A8AB0] mt-2">Cuidamos a quienes no tienen voz</p>
       </div>
 
+      {/* Card */}
       <div className="w-full max-w-sm bg-white rounded-3xl shadow-xl p-7">
         <h2 className="text-xl font-black text-[#0D3B6E] mb-1">Bienvenido/a</h2>
         <p className="text-xs text-[#7A9BB5] mb-6">Inicia sesión para continuar</p>
 
         <form onSubmit={handleSubmit} className="flex flex-col gap-4">
+
+          {/* Email */}
           <div>
-            <label className="block text-xs font-bold text-[#5A8AB0] mb-1.5 uppercase tracking-wider">Correo electrónico</label>
-            <input type="email" name="email" value={form.email} onChange={handleChange} placeholder="tucorreo@email.com"
-              className="w-full px-4 py-3 rounded-xl border-2 border-[#D4E6F5] bg-[#F5FAFF] text-[#0D3B6E] text-sm placeholder:text-[#AACCE0] focus:outline-none focus:border-[#1E6FAD] transition-colors"/>
-          </div>
-          <div>
-            <label className="block text-xs font-bold text-[#5A8AB0] mb-1.5 uppercase tracking-wider">Contraseña</label>
+            <label className="block text-xs font-bold text-[#5A8AB0] mb-1.5 uppercase tracking-wider">
+              Correo electrónico
+            </label>
             <div className="relative">
-              <input type={showPass ? "text" : "password"} name="password" value={form.password} onChange={handleChange} placeholder="••••••••"
-                className="w-full px-4 py-3 rounded-xl border-2 border-[#D4E6F5] bg-[#F5FAFF] text-[#0D3B6E] text-sm placeholder:text-[#AACCE0] focus:outline-none focus:border-[#1E6FAD] transition-colors pr-11"/>
-              <button type="button" onClick={() => setShowPass(!showPass)} className="absolute right-3 top-1/2 -translate-y-1/2 text-[#AACCE0] hover:text-[#1E6FAD] text-lg">
-                {showPass ? "🙈" : "👁️"}
+              <span className="absolute left-3 top-1/2 -translate-y-1/2"><IconMail /></span>
+              <input
+                type="email" name="email" value={form.email}
+                onChange={handleChange} placeholder="tucorreo@email.com"
+                className={inputCls}
+              />
+            </div>
+          </div>
+
+          {/* Contraseña */}
+          <div>
+            <label className="block text-xs font-bold text-[#5A8AB0] mb-1.5 uppercase tracking-wider">
+              Contraseña
+            </label>
+            <div className="relative">
+              <span className="absolute left-3 top-1/2 -translate-y-1/2"><IconLock /></span>
+              <input
+                type={showPass ? "text" : "password"} name="password" value={form.password}
+                onChange={handleChange} placeholder="••••••••"
+                className={inputCls + " pr-11"}
+              />
+              <button
+                type="button"
+                onClick={() => setShowPass(!showPass)}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-[#AACCE0] hover:text-[#1E6FAD] transition-colors"
+              >
+                {showPass ? <IconEyeOff /> : <IconEye />}
               </button>
             </div>
           </div>
 
-          {error && <div className="bg-red-50 border border-red-200 rounded-xl px-4 py-2.5 text-red-600 text-xs font-semibold">⚠️ {error}</div>}
+          {error && (
+            <div className="bg-red-50 border border-red-200 rounded-xl px-4 py-2.5 text-red-600 text-xs font-semibold">
+              ⚠️ {error}
+            </div>
+          )}
 
           <div className="text-right -mt-1">
-            <Link to="/forgot-password" className="text-xs text-[#1E6FAD] font-bold hover:underline">¿Olvidaste tu contraseña?</Link>
+            <Link to="/forgot-password" className="text-xs text-[#1E6FAD] font-bold hover:underline">
+              ¿Olvidaste tu contraseña?
+            </Link>
           </div>
 
-          <button type="submit" disabled={loading}
-            className="w-full py-3.5 rounded-2xl bg-[#1E6FAD] text-white font-black text-sm shadow-md hover:bg-[#185F96] active:scale-[0.98] transition-all disabled:opacity-60">
+          <button
+            type="submit" disabled={loading}
+            className="w-full py-3.5 rounded-2xl bg-[#1E6FAD] text-white font-black text-sm shadow-md hover:bg-[#185F96] active:scale-[0.98] transition-all disabled:opacity-60"
+          >
             {loading ? (
               <span className="flex items-center justify-center gap-2">
                 <svg className="animate-spin w-4 h-4" viewBox="0 0 24 24" fill="none">
@@ -96,11 +160,16 @@ export default function Login() {
         </form>
 
         <div className="flex items-center gap-3 my-5">
-          <div className="flex-1 h-px bg-[#E4EFF8]"/><span className="text-xs text-[#AACCE0] font-semibold">o</span><div className="flex-1 h-px bg-[#E4EFF8]"/>
+          <div className="flex-1 h-px bg-[#E4EFF8]"/>
+          <span className="text-xs text-[#AACCE0] font-semibold">o</span>
+          <div className="flex-1 h-px bg-[#E4EFF8]"/>
         </div>
 
-        <Link to="/register" className="flex items-center justify-center w-full py-3.5 rounded-2xl border-2 border-[#1E6FAD] text-[#1E6FAD] font-black text-sm hover:bg-[#EBF4FF] active:scale-[0.98] transition-all">
-          Crear cuenta nueva 🐾
+        <Link
+          to="/register"
+          className="flex items-center justify-center w-full py-3.5 rounded-2xl border-2 border-[#1E6FAD] text-[#1E6FAD] font-black text-sm hover:bg-[#EBF4FF] active:scale-[0.98] transition-all"
+        >
+          Crear cuenta nueva
         </Link>
       </div>
     </div>

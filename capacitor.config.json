@@ -1,5 +1,15 @@
 {
   "appId": "pe.trujillo.patitas",
   "appName": "Patitas Trujillo",
-  "webDir": "dist"
+  "webDir": "dist",
+  "server": {
+    "androidScheme": "https"
+  },
+  "plugins": {
+    "LocalNotifications": {
+      "smallIcon": "ic_launcher",
+      "iconColor": "#4A9FD4",
+      "sound": "default"
+    }
+  }
 }

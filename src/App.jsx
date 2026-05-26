@@ -1,6 +1,6 @@
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
-import AuthProvider    from "./hooks/AuthProvider";
-import ProtectedRoute  from "./components/ProtectedRoute";
+import AuthProvider   from "./hooks/AuthProvider";
+import ProtectedRoute from "./components/ProtectedRoute";
 
 import Login      from "./pages/Login";
 import Register   from "./pages/Register";
@@ -12,6 +12,8 @@ import ReportForm from "./pages/ReportForm";
 import Tips       from "./pages/Tips";
 import Settings   from "./pages/Settings";
 import Donations  from "./pages/Donations";
+import CameraPage from "./pages/Camera";
+import Alerts     from "./pages/Alerts";
 
 export default function App() {
   return (
@@ -31,6 +33,8 @@ export default function App() {
           <Route path="/tips"        element={<ProtectedRoute><Tips /></ProtectedRoute>} />
           <Route path="/settings"    element={<ProtectedRoute><Settings /></ProtectedRoute>} />
           <Route path="/donate"      element={<ProtectedRoute><Donations /></ProtectedRoute>} />
+          <Route path="/camera"      element={<ProtectedRoute><CameraPage /></ProtectedRoute>} />
+          <Route path="/alerts"      element={<ProtectedRoute><Alerts /></ProtectedRoute>} />
 
           {/* Fallback */}
           <Route path="*" element={<Navigate to="/login" replace />} />

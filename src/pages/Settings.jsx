@@ -1,5 +1,7 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
+import { supabase } from "../lib/supabase";
+import useAuth from "../hooks/useAuth";
 import TopNavbar    from "../components/TopNavbar";
 import BottomNavbar from "../components/BottomNavbar";
 import { AboutModal, PrivacyModal, TermsModal } from "../components/InfoModals";
@@ -50,6 +52,11 @@ const IconEdit = () => (
     <path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/>
   </svg>
 );
+const IconX = () => (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" className="w-5 h-5">
+    <path d="M18 6L6 18M6 6l12 12"/>
+  </svg>
+);
 const PawPrint = ({ className = "" }) => (
   <svg className={className} viewBox="0 0 40 40" fill="currentColor">
     <ellipse cx="8" cy="14" rx="3.5" ry="5"/><ellipse cx="15" cy="9" rx="3.5" ry="5"/>
@@ -71,7 +78,9 @@ function SettingRow({ Icon, label, sublabel, iconBg, iconColor, onClick, danger 
       </div>
       <div className="flex-1 text-left min-w-0">
         <p className="font-bold text-sm" style={{ color: danger ? "#E74C3C" : "#0D2B45" }}>{label}</p>
-        {sublabel && <p className="text-xs mt-0.5" style={{ color: "#9ABCCE" }}>{sublabel}</p>}
+        {sublabel && (
+          <p className="text-xs mt-0.5 truncate" style={{ color: "#9ABCCE" }}>{sublabel}</p>
+        )}
       </div>
       <span style={{ color: danger ? "#E74C3C" : "#BFCFDA" }}>
         <IconChevron />
@@ -82,35 +91,78 @@ function SettingRow({ Icon, label, sublabel, iconBg, iconColor, onClick, danger 
 
 // ── Modal editar perfil ───────────────────────────────────────────────────────
 function EditProfileModal({ user, onClose, onSave }) {
-  const [form, setForm] = useState({ name: user.name, phone: user.phone });
+  const [form,    setForm]    = useState({ nombre: user.nombre, telefono: user.telefono ?? "" });
+  const [loading, setLoading] = useState(false);
+  const [error,   setError]   = useState("");
+
+  const handleSave = async () => {
+    setLoading(true);
+    setError("");
+    try {
+      const { error: updateError } = await supabase
+        .from("perfiles")
+        .update({ nombre: form.nombre.trim(), telefono: form.telefono.trim() || null })
+        .eq("id", user.id);
+      if (updateError) throw updateError;
+      onSave({ nombre: form.nombre.trim(), telefono: form.telefono.trim() || null });
+      onClose();
+    } catch (err) {
+      setError("Error al guardar: " + err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const inputCls = "w-full px-4 py-3 rounded-2xl border-2 border-[#D4E6F5] bg-[#F5FAFF] text-[#0D2B45] text-sm outline-none focus:border-[#4A9FD4] transition-colors";
+
   return (
     <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/40" onClick={onClose}>
-      <div className="bg-white w-full max-w-sm rounded-t-3xl px-6 pt-5 pb-10" onClick={e => e.stopPropagation()}>
+      <div className="bg-white w-full max-w-sm rounded-t-3xl px-6 pt-5 pb-10 shadow-2xl" onClick={(e) => e.stopPropagation()}>
         <div className="w-10 h-1 bg-[#D8E8F0] rounded-full mx-auto mb-5" />
-        <h2 className="font-black text-lg text-[#0D2B45] mb-4">Editar perfil</h2>
-        {[
-          { label: "Nombre completo", key: "name",  placeholder: "Tu nombre"           },
-          { label: "Teléfono",        key: "phone", placeholder: "+51 999 999 999" },
-        ].map(f => (
-          <div key={f.key} className="mb-4">
-            <label className="block text-xs font-bold text-[#7A9BB5] uppercase tracking-wider mb-1.5">{f.label}</label>
+
+        <div className="flex items-center justify-between mb-5">
+          <p className="font-black text-lg text-[#0D2B45]">Editar perfil</p>
+          <button onClick={onClose} className="w-8 h-8 rounded-full flex items-center justify-center text-[#9ABCCE]" style={{ background: "#F0F7FC" }}>
+            <IconX />
+          </button>
+        </div>
+
+        <div className="flex flex-col gap-4">
+          <div>
+            <label className="block text-xs font-bold text-[#7A9BB5] uppercase tracking-wider mb-1.5">Nombre completo</label>
             <input
-              value={form[f.key]}
-              onChange={e => setForm(p => ({ ...p, [f.key]: e.target.value }))}
-              placeholder={f.placeholder}
-              className="w-full px-4 py-3 rounded-2xl border-2 border-[#D4E6F5] bg-[#F5FAFF] text-[#0D2B45] text-sm outline-none focus:border-[#4A9FD4] transition-colors"
+              value={form.nombre}
+              onChange={(e) => setForm((p) => ({ ...p, nombre: e.target.value }))}
+              placeholder="Tu nombre"
+              className={inputCls}
             />
           </div>
-        ))}
-        <div className="flex gap-3 mt-2">
+          <div>
+            <label className="block text-xs font-bold text-[#7A9BB5] uppercase tracking-wider mb-1.5">Teléfono</label>
+            <input
+              value={form.telefono}
+              onChange={(e) => setForm((p) => ({ ...p, telefono: e.target.value }))}
+              placeholder="+51 999 999 999"
+              className={inputCls}
+            />
+          </div>
+          {error && (
+            <p className="text-red-500 text-xs">{error}</p>
+          )}
+        </div>
+
+        <div className="flex gap-3 mt-6">
           <button onClick={onClose}
             className="flex-1 py-3 rounded-2xl border-2 border-[#D4E6F5] font-black text-sm text-[#7A9BB5]">
             Cancelar
           </button>
-          <button onClick={() => { onSave(form); onClose(); }}
-            className="flex-1 py-3 rounded-2xl font-black text-sm text-white"
-            style={{ background: "#4A9FD4" }}>
-            Guardar
+          <button
+            onClick={handleSave}
+            disabled={loading}
+            className="flex-1 py-3 rounded-2xl font-black text-sm text-white disabled:opacity-60"
+            style={{ background: "#4A9FD4" }}
+          >
+            {loading ? "Guardando..." : "Guardar"}
           </button>
         </div>
       </div>
@@ -119,12 +171,14 @@ function EditProfileModal({ user, onClose, onSave }) {
 }
 
 // ── Modal cerrar sesión ───────────────────────────────────────────────────────
-function LogoutModal({ onClose, onConfirm }) {
+function LogoutModal({ onClose, onConfirm, loading }) {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-6" onClick={onClose}>
-      <div className="bg-white w-full max-w-sm rounded-3xl p-6 shadow-2xl" onClick={e => e.stopPropagation()}>
+      <div className="bg-white w-full max-w-sm rounded-3xl p-6 shadow-2xl" onClick={(e) => e.stopPropagation()}>
         <div className="text-center mb-5">
-          <div className="text-4xl mb-3">👋</div>
+          <div className="w-16 h-16 rounded-full bg-red-50 flex items-center justify-center mx-auto mb-3 text-red-400">
+            <IconLogout />
+          </div>
           <h2 className="font-black text-xl text-[#0D2B45] mb-1">¿Cerrar sesión?</h2>
           <p className="text-sm text-[#7A9BB5]">Podrás volver a ingresar en cualquier momento.</p>
         </div>
@@ -133,10 +187,13 @@ function LogoutModal({ onClose, onConfirm }) {
             className="flex-1 py-3 rounded-2xl border-2 border-[#D4E6F5] font-black text-sm text-[#7A9BB5]">
             Cancelar
           </button>
-          <button onClick={onConfirm}
-            className="flex-1 py-3 rounded-2xl font-black text-sm text-white"
-            style={{ background: "#E74C3C" }}>
-            Cerrar sesión
+          <button
+            onClick={onConfirm}
+            disabled={loading}
+            className="flex-1 py-3 rounded-2xl font-black text-sm text-white disabled:opacity-60"
+            style={{ background: "#E74C3C" }}
+          >
+            {loading ? "Saliendo..." : "Cerrar sesión"}
           </button>
         </div>
       </div>
@@ -146,28 +203,71 @@ function LogoutModal({ onClose, onConfirm }) {
 
 // ── Pantalla ──────────────────────────────────────────────────────────────────
 export default function Settings() {
-  const navigate = useNavigate();
+  const navigate        = useNavigate();
+  const { session, setPerfil } = useAuth();
 
-  // TODO: obtener datos reales desde Supabase auth
-  const [user, setUser] = useState({
-    name:  "Juan Pérez",
-    email: "juan@email.com",
-    phone: "+51 999 999 999",
-  });
+  const [user,         setUser]         = useState(null);
+  const [loadingUser,  setLoadingUser]  = useState(true);
+  const [modal,        setModal]        = useState(null);
+  const [loggingOut,   setLoggingOut]   = useState(false);
 
-  // Control de modales
-  const [modal, setModal] = useState(null);
-  // valores: null | "edit" | "logout" | "about" | "privacy" | "terms"
+  // Cargar perfil desde Supabase
+  useEffect(() => {
+    const cargar = async () => {
+      if (!session?.user?.id) return;
+      setLoadingUser(true);
+      const { data } = await supabase
+        .from("perfiles")
+        .select("*")
+        .eq("id", session.user.id)
+        .single();
+      setUser(data ?? {
+        id:       session.user.id,
+        nombre:   session.user.user_metadata?.nombre ?? "Usuario",
+        telefono: null,
+      });
+      setLoadingUser(false);
+    };
+    cargar();
+  }, [session]);
 
-  const handleLogout = () => {
-    // TODO: supabase.auth.signOut()
+  const handleSaveProfile = (updated) => {
+    setUser((prev) => ({ ...prev, ...updated }));
+    if (setPerfil) setPerfil((prev) => ({ ...prev, ...updated }));
+  };
+
+  const handleLogout = async () => {
+    setLoggingOut(true);
+    await supabase.auth.signOut();
+    setLoggingOut(false);
     navigate("/login");
   };
 
   const PROFILE_ROWS = [
-    { Icon: IconUser,  label: "Nombre",              sublabel: user.name,  iconBg: "#EBF4FF", iconColor: "#4A9FD4", action: "edit"   },
-    { Icon: IconMail,  label: "Correo",               sublabel: user.email, iconBg: "#EBF4FF", iconColor: "#4A9FD4", action: null     },
-    { Icon: IconPhone, label: "Teléfono",             sublabel: user.phone, iconBg: "#EBF4FF", iconColor: "#4A9FD4", action: "edit"   },
+    {
+      Icon:     IconUser,
+      label:    "Nombre",
+      sublabel: user?.nombre ?? "—",
+      iconBg:   "#EBF4FF",
+      iconColor:"#4A9FD4",
+      action:   "edit",
+    },
+    {
+      Icon:     IconMail,
+      label:    "Correo",
+      sublabel: session?.user?.email ?? "—",
+      iconBg:   "#EBF4FF",
+      iconColor:"#4A9FD4",
+      action:   null,
+    },
+    {
+      Icon:     IconPhone,
+      label:    "Teléfono",
+      sublabel: user?.telefono ?? "No registrado",
+      iconBg:   "#EBF4FF",
+      iconColor:"#4A9FD4",
+      action:   "edit",
+    },
   ];
 
   const ABOUT_ROWS = [
@@ -175,6 +275,20 @@ export default function Settings() {
     { Icon: IconShield, label: "Política de privacidad", sublabel: "Tus datos están seguros", iconBg: "#EEFAF4", iconColor: "#27AE60", action: "privacy" },
     { Icon: IconDoc,    label: "Términos y condiciones",  sublabel: "Condiciones de uso",      iconBg: "#EEFAF4", iconColor: "#27AE60", action: "terms"   },
   ];
+
+  if (loadingUser) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-[#EBF4FF]">
+        <div className="flex flex-col items-center gap-3">
+          <svg className="animate-spin w-8 h-8 text-[#4A9FD4]" viewBox="0 0 24 24" fill="none">
+            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
+            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4l3-3-3-3V4a10 10 0 100 10h-2a8 8 0 01-8-8z"/>
+          </svg>
+          <p className="text-[#4A9FD4] font-bold text-sm">Cargando perfil...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen flex flex-col font-['Nunito',sans-serif] max-w-sm mx-auto" style={{ background: "#EBF4FF" }}>
@@ -194,8 +308,8 @@ export default function Settings() {
               <IconEdit />
             </button>
           </div>
-          <p className="font-black text-lg text-[#0D2B45]">{user.name}</p>
-          <p className="text-xs text-[#9ABCCE]">{user.email}</p>
+          <p className="font-black text-lg text-[#0D2B45]">{user?.nombre ?? "Usuario"}</p>
+          <p className="text-xs text-[#9ABCCE]">{session?.user?.email ?? ""}</p>
         </div>
 
         {/* Perfil */}
@@ -222,10 +336,7 @@ export default function Settings() {
           <div className="bg-white rounded-3xl overflow-hidden" style={{ border: "1.5px solid #D8E8F0" }}>
             {ABOUT_ROWS.map((row, i) => (
               <div key={row.label}>
-                <SettingRow
-                  {...row}
-                  onClick={() => setModal(row.action)}
-                />
+                <SettingRow {...row} onClick={() => setModal(row.action)} />
                 {i < ABOUT_ROWS.length - 1 && (
                   <div className="h-px mx-4" style={{ background: "#F0F7FC" }} />
                 )}
@@ -255,8 +366,20 @@ export default function Settings() {
       <BottomNavbar />
 
       {/* Modales */}
-      {modal === "edit"    && <EditProfileModal user={user} onClose={() => setModal(null)} onSave={(u) => setUser(p => ({ ...p, ...u }))} />}
-      {modal === "logout"  && <LogoutModal onClose={() => setModal(null)} onConfirm={handleLogout} />}
+      {modal === "edit" && user && (
+        <EditProfileModal
+          user={user}
+          onClose={() => setModal(null)}
+          onSave={handleSaveProfile}
+        />
+      )}
+      {modal === "logout" && (
+        <LogoutModal
+          onClose={() => setModal(null)}
+          onConfirm={handleLogout}
+          loading={loggingOut}
+        />
+      )}
       {modal === "about"   && <AboutModal   onClose={() => setModal(null)} />}
       {modal === "privacy" && <PrivacyModal  onClose={() => setModal(null)} />}
       {modal === "terms"   && <TermsModal    onClose={() => setModal(null)} />}
